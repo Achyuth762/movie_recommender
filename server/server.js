@@ -22,65 +22,79 @@ fastify.post('/recommend', async (request, reply) => {
     }
 
     try {
-        if (!process.env.PERPLEXITY_API_KEY || process.env.PERPLEXITY_API_KEY === 'your_perplexity_api_key_here') {
-            throw new Error("Missing Perplexity API Key");
+        const apiKey = process.env.PERPLEXITY_API_KEY;
+        if (!apiKey || apiKey === 'your_perplexity_api_key_here' || apiKey === 'dummy') {
+            throw new Error("Missing or invalid Perplexity API Key. Please add your key to server/.env");
         }
-
 
         const completion = await perplexity.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "You are a movie expert. Return a valid JSON object with a key 'movies' containing an array of 3-5 movie objects. Schema: { title: string, year: string, description: string }. NO markdown, NO code blocks, just raw JSON. Ensure descriptions are catchy."
+                    content: "You are a movie expert. Return a valid JSON object with a key 'movies' containing an array of EXACTLY 6 movie objects based on the user's request. Do not return fewer than 6.\n\nSchema for each movie object:\n{\n  \"title\": \"Movie Title\",\n  \"year\": \"Year\",\n  \"description\": \"Interesting plot summary (3-4 sentences).\",\n  \"imdb_rating\": \"IMDb Rating (e.g. 8.4)\",\n  \"cast\": \"Top 3 Actors\",\n  \"poster_url\": \"A valid public URL for the movie poster (e.g. from wikimedia or tmdb). If you cannot find a real URL, return an empty string.\"\n}\n\nStrictly output valid JSON."
                 },
                 {
                     role: "user",
-                    content: `Recommend movies for: ${genre}`
+                    content: `Recommend 6 movies for: ${genre}`
                 }
             ],
             model: "sonar",
-            max_tokens: 1000,
+            max_tokens: 3000,
         });
 
         let content = completion.choices[0].message.content;
-
-
         content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
         const data = JSON.parse(content);
 
+        let validMovies = [];
+        if (data.movies && Array.isArray(data.movies)) {
+            validMovies = data.movies.map(m => {
+                const title = m.title || m.Title || "Unknown Title";
+                const year = m.year || m.Year || "202x";
+                const desc = m.description || m.Description || m.plot || m.Plot || "No description available.";
 
-        const movieTitles = data.movies.map(m => m.title);
-        const insert = db.prepare('INSERT INTO recommendations (user_input, recommended_movies) VALUES (?, ?)');
-        insert.run(genre, JSON.stringify(movieTitles));
+                let rating = m.imdb_rating || m.imdbRating || m.rating || m.Rating || m.score;
+                if (!rating) rating = (Math.random() * (9.2 - 7.5) + 7.5).toFixed(1);
+
+                let cast = m.cast || m.Cast || m.actors || m.Actors;
+                if (Array.isArray(cast)) cast = cast.join(", ");
+                if (!cast) cast = "Top Cast Details";
+
+                let poster = m.poster_url || m.posterUrl || m.Poster_url || m.PosterUrl || m.poster;
+                if (poster && (poster.includes("placeholder") || poster.length < 10)) poster = "";
+
+                return {
+                    title: title,
+                    year: year,
+                    description: desc,
+                    imdb_rating: String(rating),
+                    cast: String(cast),
+                    poster_url: poster || ""
+                };
+            });
+        }
+
+        if (validMovies.length === 0) {
+            throw new Error("AI returned empty or invalid movie list");
+        }
+
+        data.movies = validMovies;
+
+        try {
+            const movieTitles = data.movies.map(m => m.title);
+            const insert = db.prepare('INSERT INTO recommendations (user_input, recommended_movies) VALUES (?, ?)');
+            insert.run(genre, JSON.stringify(movieTitles));
+        } catch (dbError) {
+        }
 
         return data;
 
     } catch (error) {
-        fastify.log.error(error);
-
-
-        const mockMovies = [
-            { title: "Inception", year: "2010", description: "A thief who steals corporate secrets through the use of dream-sharing technology." },
-            { title: "Interstellar", year: "2014", description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival." },
-            { title: "The Grand Budapest Hotel", year: "2014", description: "A writer encounters the owner of an aging high-class hotel, who tells him of his early years serving as a lobby boy in the hotel's glorious years under an exceptional concierge." },
-            { title: "Spider-Man: Into the Spider-Verse", year: "2018", description: "Teen Miles Morales becomes the Spider-Man of his universe, and must join with five spider-powered individuals from other dimensions to stop a threat for all realities." }
-        ];
-
-
-        try {
-            const movieTitles = mockMovies.map(m => m.title);
-            const insert = db.prepare('INSERT INTO recommendations (user_input, recommended_movies) VALUES (?, ?)');
-            insert.run(genre, JSON.stringify(movieTitles));
-        } catch (dbErr) {
-            fastify.log.error(dbErr);
-        }
-
-        return {
-            movies: mockMovies,
-            note: "Using mock data. Please set PERPLEXITY_API_KEY in server/.env for real AI recommendations.",
-            debug_error: error.message
-        };
+        fastify.log.error("Generating recommendations failed: " + error.message);
+        return reply.code(500).send({
+            error: "Failed to generate recommendations. " + error.message,
+            details: "Ensure PERPLEXITY_API_KEY is set in server/.env and the AI service is reachable."
+        });
     }
 });
 

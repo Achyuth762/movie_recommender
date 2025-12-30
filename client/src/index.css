@@ -1,24 +1,30 @@
 :root {
+  /* "Matrix / Cyberpunk" Palette */
   --bg-color: #030303;
-  --text-color: #f0fdf4;
+  --text-primary: #f0fdf4;
+  --text-secondary: #86efac;
+
+  /* Green Accents */
   --primary: #22c55e;
+  --primary-glow: #4ade80;
   --secondary: #16a34a;
-  --accent: #4ade80;
-  --glass: rgba(10, 10, 10, 0.85);
-  --glass-border: rgba(34, 197, 94, 0.15);
-  --card-bg: #121212;
+  --accent: #15803d;
+
+  --glass: rgba(10, 10, 10, 0.9);
+  --glass-border: rgba(34, 197, 94, 0.2);
+  --card-bg: #0a0a0a;
 }
 
 body {
   margin: 0;
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   background-image:
-    radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
-    linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)),
-    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(34, 197, 94, 0.03) 1px, rgba(34, 197, 94, 0.03) 2px);
+    radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+    linear-gradient(rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.95)),
+    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(34, 197, 94, 0.05) 1px, rgba(34, 197, 94, 0.05) 2px);
   background-attachment: fixed;
 }
