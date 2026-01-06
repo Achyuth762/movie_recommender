@@ -5,7 +5,7 @@
 
 A premium, AI-powered web application that curates movie recommendations based on your specific mood and vibe. "Stop searching, start watching."
 
-**[🔗 Live Demo](https://movie-recommender-alpha.vercel.app/)**
+**[🔗 Live Demo](https://movierecommender-five.vercel.app/)**
 
 ---
 
